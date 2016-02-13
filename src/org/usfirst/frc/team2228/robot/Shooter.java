@@ -90,7 +90,6 @@ public class Shooter
         angleMotor.setD(0);
         angleMotor.setCloseLoopRampRate(rampRateStpt);
        
-        angleMotor.setPosition(0);
         
         leftWheel.setFeedbackDevice(FeedbackDevice.QuadEncoder);
         leftWheel.reverseSensor(false);
@@ -231,14 +230,14 @@ public class Shooter
 		System.out.println(leftWheel.getSpeed());
 	}
 	
-	public void aimHigh(){
+	public void aimUp(){
 		modeStatus = "aimhigh";
 		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
 
 	
-			angleMotor.set(0.4);
-			System.out.println("inTargetRange");
 		
+		angleMotor.set(0.4);
+		System.out.println("inTargetRange");
 		kickServo.set(1);
 
 		
@@ -246,10 +245,19 @@ public class Shooter
 		
 	}
 	
+	public void goToHigh(){
+		angleMotor.changeControlMode(TalonControlMode.Position);
+
+		if(angleMotor.getPosition()> 500){
+			angleMotor.set(-500);
+
+		}
+	}
+	
 	/**
 	 * Aims the shooter for the low goal and speeds up shooter wheels to optimal low goal velocity
 	 */
-	public void aimLow(){
+	public void takeInAndGather(){
 		modeStatus = "aimWherever";
 		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
 
@@ -262,7 +270,9 @@ public class Shooter
 		
 		leftWheel.set(0.3);
 		rightWheel.set(0.3);
-		
+		 if(angleMotor.isRevLimitSwitchClosed()){
+        	 angleMotor.setPosition(0);
+         }
 		
 	}
 
@@ -298,7 +308,7 @@ public class Shooter
 	public void reset()
 	{
 		kickServo.set(1);
-		if(angleMotor.isReverseSoftLimitEnabled()){
+		if(angleMotor.isRevLimitSwitchClosed()){
 			angleMotor.setPosition(0);
 			System.out.println("reset");
 		}

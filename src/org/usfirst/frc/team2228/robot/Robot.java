@@ -35,25 +35,23 @@ public class Robot extends IterativeRobot {
     double lSpeed = 0;
     double mode = 2;
 
-//	private Joystick joy2;
 	
 	
     public void robotInit() {
     	
     	joy = new Joystick(0);
-//    	joy = new Joystick(1);
+    	
+    	
+    	rightMotor = new CANTalon(1);
+    	right2 = new CANTalon(2);
+    	leftMotor = new CANTalon(3);
+    	left2= new CANTalon(4);
     	
     	//1: port for angle motor
     	//2: port for left shooter wheel
     	//3: port for right motor wheel
     	//4: port for sonar sensor digital input
     	//5: port for servo motor pwm
-    	rightMotor = new CANTalon(1);
-    	right2 = new CANTalon(2);
-    	leftMotor = new CANTalon(3);
-    	left2= new CANTalon(4);
-    	
-    	
     	shooter = new Shooter(8,5,6,0,0);
    
     	imu = new IMU();
@@ -86,58 +84,15 @@ public class Robot extends IterativeRobot {
     	rSpeed = -joy.getMagnitude();
     	lSpeed = -joy.getMagnitude();
     	
-//    	SmartDashboard.putData("IMU", imu);
-//        Timer.delay(0.005);		// wait for a motor update time
-
-    	
-//    	//If boulder is not contained in the bot
-//		if(!shooter.isCollected()){
-//
-//			//and button 1 is pressed run the gatherer
-//			if(joy.getRawButton(1)){
-//				shooter.gather();
-//			}
-//			
-//		//If user is not aiming it will go to transportation mode
-//		}else 
-//		if(!shooter.getMode().equals("aimhigh") || !shooter.getMode().equals("aimlow")){
-//
-//			shooter.goToTransport();
-//			
-//		}else if(joy.getRawButton(2)){
-//
-//			shooter.aimHigh();
-//			
-//		}else if(joy.getRawButton(3)){
-//			
-//			shooter.aimLow();
-//			
-//		}else if(joy.getRawButton(4)){
-//			shooter.goToVertical();
-//		}
-//		
-		
-//if(joy.getRawButton(3)){
-//			
-//			shooter.aimLow();
-//}else{
-//	shooter.aimHigh();
-//	
-//}
-//
-//if(joy.getRawButton(5)){
-//	shooter.startShoot();
-//}
 		
     	 if(joy.getRawButton(2)){
-         	shooter.aimLow();
+         	shooter.takeInAndGather();
          }
         if(joy.getRawButton(3)){
-        	shooter.aimHigh();
+        	shooter.aimUp();
         }
         
-		//if the shooter is in optimal shooting conditions where both motors are up to speed and 
-		//it is angled at the correct height the bot will run the shoot function
+		
 		if(joy.getRawButton(4)){
 			shooter.startShoot();
 		}
@@ -145,9 +100,9 @@ public class Robot extends IterativeRobot {
 			shooter.reset();
 		}
 		
-		  if(joy.getRawButton(1)){
+		if(joy.getRawButton(1)){
 	        	shooter.spinMotors();
-	        }
+	    }
 	        
 		
 		
@@ -179,12 +134,6 @@ public class Robot extends IterativeRobot {
     	left2.set(-lSpeed/mode);
     	rightMotor.set(rSpeed/mode);
     	right2.set(rSpeed/mode);
-		
-		
-//		if(joy2.getRawButton(1)){
-//			shooter.manualAim(joy2.getMagnitude());
-//		}
-    	
     	
     }
     
