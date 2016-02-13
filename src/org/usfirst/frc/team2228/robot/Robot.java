@@ -1,189 +1,198 @@
-/**
- * Example demonstrating the velocity closed-loop servo.
- * Tested with Logitech F350 USB Gamepad inserted into Driver Station]
- * 
- * Be sure to select the correct feedback sensor using SetFeedbackDevice() below.
- *
- * After deploying/debugging this to your RIO, first use the left Y-stick 
- * to throttle the Talon manually.  This will confirm your hardware setup.
- * Be sure to confirm that when the Talon is driving forward (green) the 
- * position sensor is moving in a positive direction.  If this is not the cause
- * flip the boolena input to the SetSensorDirection() call below.
- *
- * Once you've ensured your feedback device is in-phase with the motor,
- * use the button shortcuts to servo to target velocity.  
- *
- * Tweak the PID gains accordingly.
- */
+
 package org.usfirst.frc.team2228.robot;
+
 import java.util.Date;
 
 import edu.wpi.first.wpilibj.CANTalon;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Joystick.AxisType;
-import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
-import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
+import edu.wpi.first.wpilibj.Servo;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
+
+/**
+ * The VM is configured to automatically run this class, and to call the
+ * functions corresponding to each mode, as described in the IterativeRobot
+ * documentation. If you change the name of this class or the package after
+ * creating this project, you must also update the manifest file in the resource
+ * directory.
+ */
 public class Robot extends IterativeRobot {
-  
-	CANTalon _talon = new CANTalon(14);	
-	Joystick _joy = new Joystick(0);	
-	StringBuilder _sb = new StringBuilder();
-	int _loops = 0;
-	Date nowTime = new Date();
-	Date date = new Date();
-	int tIme = (int) (System.currentTimeMillis()/1000);
 
-	long autoSTime = nowTime.getTime();
-	private double targetSpeed;
-	Writer writer;
+	private Joystick joy;
 
+    
+	private Shooter shooter;
+	private IMU imu;
+	CANTalon leftMotor;
+	CANTalon rightMotor;
+	CANTalon left2;
+    CANTalon right2;
+
+    double rSpeed = 0;
+    double lSpeed = 0;
+    double mode = 2;
+
+//	private Joystick joy2;
 	
-	public boolean autoTest(){
-		
-		_sb.append("\tout:");
-		_sb.append(_talon.getOutputVoltage());
-		
-        _sb.append("\tspd:");
-        _sb.append(_talon.getSpeed() );
+	
+    public void robotInit() {
     	
-        _sb.append("\terr:");
-        _sb.append((_talon.getClosedLoopError()*(600.0/1024.0)));
-        _sb.append("\ttrg:");
-        _sb.append(targetSpeed);
-        _sb.append("\tvolt:");
-        _sb.append(_talon.getOutputVoltage());
-		
-        if(++_loops >= 10) {
-        	_loops = 0;
-        	System.out.println(_sb.toString());
-        }
-        _sb.setLength(0);		
-        
-        
-        _talon.changeControlMode(TalonControlMode.Speed);
-		nowTime = new Date();
+    	joy = new Joystick(0);
+//    	joy = new Joystick(1);
+    	
+    	//1: port for angle motor
+    	//2: port for left shooter wheel
+    	//3: port for right motor wheel
+    	//4: port for sonar sensor digital input
+    	//5: port for servo motor pwm
+    	rightMotor = new CANTalon(1);
+    	right2 = new CANTalon(2);
+    	leftMotor = new CANTalon(3);
+    	left2= new CANTalon(4);
+    	
+    	
+    	shooter = new Shooter(8,5,6,0,0);
+   
+    	imu = new IMU();
+    	
+    }
+    
+  
+    /**
+     * 
+     */
+    public void autonomousInit() {
 
-		
-		if(nowTime.getTime() < autoSTime+2500){
-			
-			targetSpeed = .75*700;
-			_talon.set(.75*700);
-			
-		}else if(nowTime.getTime() < autoSTime+5000){
-			
-			targetSpeed = .25*700;
-			_talon.set(.25*700);
-			
-		}else{
-			autoSTime = nowTime.getTime();
-		}
-		
-		writer.log(tIme, _talon.getOutputVoltage() + "," + 
-		_talon.getSpeed() + "," + _talon.getClosedLoopError() + "," + targetSpeed +"\n", 1);
-		
-		return true;
-	}
-	
-	
-	
-	public void robotInit() {
-        /* first choose the sensor */
-		writer = new Writer();
 
-        _talon.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-        _talon.reverseSensor(true);
-        _talon.configEncoderCodesPerRev(256); // if using FeedbackDevice.QuadEncoder
-        //_talon.configPotentiometerTurns(XXX), // if using FeedbackDevice.AnalogEncoder or AnalogPot
+    }
+    
+    /**
+     * This function is called periodically during autonomous
+     */
+    public void autonomousPeriodic() {
 
-        /* set the peak and nominal outputs, 12V means full */
-        _talon.configNominalOutputVoltage(+0.0f, -0.0f);
-        _talon.configPeakOutputVoltage(+12.0f, -12.0f);
-        /* set closed loop gains in slot0 */
-        _talon.setProfile(0);
-        _talon.setF(0.856);
-        _talon.setP(0.5);
-        _talon.setI(0); 
-        _talon.setD(5);
-        _talon.setCloseLoopRampRate(24);
-	}
+    }
+
+
+    
     /**
      * This function is called periodically during operator control
      */
     public void teleopPeriodic() {
-    	/* get gamepad axis */
-    	double leftYstick = _joy.getAxis(AxisType.kY);
-    	double motorOutput = _talon.getOutputVoltage() / _talon.getBusVoltage();
-    	/* prepare line to print */
-		_sb.append("\tout:");
-		_sb.append(motorOutput);
-        _sb.append("\tspd:");
-        _sb.append(_talon.getSpeed() );
-/*
- * 	out:1.0	spd:716.6015625	err:36	trg:738.0
-	out:1.0	spd:716.6015625	err:36	trg:738.0
-	out:1.0	spd:715.4296875	err:38	trg:738.0
-	out:1.0	spd:714.84375	err:38	trg:738.0
-	out:1.0	spd:713.0859375	err:42	trg:738.0
-	out:1.0	spd:714.84375	err:39	trg:738.0
-	out:1.0	spd:713.671875	err:41	trg:738.0
-	out:1.0	spd:716.015625	err:37	trg:738.0
-	out:1.0	spd:714.2578125	err:40	trg:738.0
-	out:1.0	spd:716.6015625	err:36	trg:738.0
-	out:1.0	spd:715.4296875	err:38	trg:738.0
-	out:1.0	spd:717.1875	err:35	trg:738.0
-	out:1.0	spd:716.015625	err:37	trg:738.0
-	out:1.0	spd:716.6015625	err:36	trg:738.0
-	out:1.0	spd:716.6015625	err:36	trg:738.0
-	out:1.0	spd:717.7734375	err:34	trg:738.0
-	out:1.0	spd:717.7734375	err:34	trg:738.0
-	out:1.0	spd:716.015625	err:37	trg:738.0
- *         
- *         
- */         
-        if(_joy.getRawButton(11)){
-        	
-        	while(autoTest()){
-        		
-        	}
-        	
+
+    	rSpeed = -joy.getMagnitude();
+    	lSpeed = -joy.getMagnitude();
+    	
+//    	SmartDashboard.putData("IMU", imu);
+//        Timer.delay(0.005);		// wait for a motor update time
+
+    	
+//    	//If boulder is not contained in the bot
+//		if(!shooter.isCollected()){
+//
+//			//and button 1 is pressed run the gatherer
+//			if(joy.getRawButton(1)){
+//				shooter.gather();
+//			}
+//			
+//		//If user is not aiming it will go to transportation mode
+//		}else 
+//		if(!shooter.getMode().equals("aimhigh") || !shooter.getMode().equals("aimlow")){
+//
+//			shooter.goToTransport();
+//			
+//		}else if(joy.getRawButton(2)){
+//
+//			shooter.aimHigh();
+//			
+//		}else if(joy.getRawButton(3)){
+//			
+//			shooter.aimLow();
+//			
+//		}else if(joy.getRawButton(4)){
+//			shooter.goToVertical();
+//		}
+//		
+		
+//if(joy.getRawButton(3)){
+//			
+//			shooter.aimLow();
+//}else{
+//	shooter.aimHigh();
+//	
+//}
+//
+//if(joy.getRawButton(5)){
+//	shooter.startShoot();
+//}
+		
+    	 if(joy.getRawButton(2)){
+         	shooter.aimLow();
+         }
+        if(joy.getRawButton(3)){
+        	shooter.aimHigh();
         }
         
-        
-         if(_joy.getRawButton(1)){
-        	/* Speed mode */
-        	double targetSpeed = 700; /* 1500 RPM in either direction */
-        	_talon.changeControlMode(TalonControlMode.Speed);
-        	_talon.set(targetSpeed); /* 1500 RPM in either direction */
-        	/* append more signals to print when in speed mode. */
-        	//1024
-        	
-        	
-            _sb.append("\terr:");
-            _sb.append((_talon.getClosedLoopError()*(600.0/1440.0)));
-            _sb.append("\ttrg:");
-            _sb.append(targetSpeed);
-            _sb.append("\tvolt:");
-            _sb.append(_talon.getOutputVoltage());
-        }else if(_joy.getRawButton(2)){
-        	
-        	_talon.changeControlMode(TalonControlMode.Position);
-        	_sb.append("\tpos:");
-        	_sb.append(_talon.getPosition());
-        	_talon.set(0);
-        	
-        }else {
+		//if the shooter is in optimal shooting conditions where both motors are up to speed and 
+		//it is angled at the correct height the bot will run the shoot function
+		if(joy.getRawButton(4)){
+			shooter.startShoot();
+		}
+		if(joy.getRawButton(5)){
+			shooter.reset();
+		}
+		
+		  if(joy.getRawButton(1)){
+	        	shooter.spinMotors();
+	        }
+	        
+		
+		
+		if(joy.getAxis(Joystick.AxisType.kY) > 0.15){
+    		
+    		lSpeed *= -1;
+    		rSpeed *= -1;
+    		
+    	}else if(joy.getAxis(Joystick.AxisType.kY) < -0.15){
+    		
+    		lSpeed *= 1;
+    		rSpeed *= 1;
+    		
+    	}
+    	
+    	if(joy.getTwist()>0.15){
+    		lSpeed-= joy.getTwist()/2;
+    		rSpeed+= joy.getTwist()/2;
 
-        	/* Percent voltage mode */
-        	_talon.changeControlMode(TalonControlMode.PercentVbus);
-        	_talon.set(leftYstick);
-        }
+    	}else if(joy.getTwist() < -0.15){
+    		lSpeed-= joy.getTwist()/2;
+    		rSpeed+= joy.getTwist()/2;
 
-        if(++_loops >= 10) {
-        	_loops = 0;
-        	System.out.println(_sb.toString());
-        }
-        _sb.setLength(0);
+    	}
+    		
+    	
+    	leftMotor.set(lSpeed/mode);
+    	//WIRED BACKWARDS!!!!!!!!
+    	left2.set(-lSpeed/mode);
+    	rightMotor.set(rSpeed/mode);
+    	right2.set(rSpeed/mode);
+		
+		
+//		if(joy2.getRawButton(1)){
+//			shooter.manualAim(joy2.getMagnitude());
+//		}
+    	
+    	
     }
+    
+    /**
+     * This function is called periodically during test mode
+     */
+    public void testPeriodic() {
+    
+    }
+    
 }
