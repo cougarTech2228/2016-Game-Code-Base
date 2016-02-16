@@ -40,7 +40,7 @@ public class Shooter
 	private int verticalPosStpt = 512 * ifReverse;
 	private int highGoalPosStpt = 256 * ifReverse;
 	private int lowGoalPosStpt = 128 * ifReverse;
-	private int transportPosStpt = 0;
+	private int transportPosStpt = 200;
 	
 	private int time;
 
@@ -77,14 +77,13 @@ public class Shooter
 		
         angleMotor.changeControlMode(TalonControlMode.Position);
         angleMotor.reverseSensor(false);
-        angleMotor.configEncoderCodesPerRev(250);
         angleMotor.configNominalOutputVoltage(+0.0f, -0.0f);
         
         //set max output voltage both positive and negative at 12volts to motor controllers
-        angleMotor.configPeakOutputVoltage(+12.0f, -12.0f);
+        angleMotor.configPeakOutputVoltage(+3f, -3f);
 
         angleMotor.setProfile(0);
-        angleMotor.setF(1.5345);
+        angleMotor.setF(0);
         angleMotor.setP(0.3);
         angleMotor.setI(0); 
         angleMotor.setD(0);
@@ -123,12 +122,12 @@ public class Shooter
 	public void manualAim(double d){
 		
 		if(d > 0){
-			angleMotor.set(d*512*ifReverse );
+			angleMotor.set(d*2050*ifReverse );
 		}
 		
 		
 		if(checkLimitStatusForward()){
-			angleMotor.setPosition(512*ifReverse);
+			angleMotor.setPosition(2050*ifReverse);
 		}
 		
 		if(checkLimitStatusReverse()){
@@ -149,6 +148,7 @@ public class Shooter
 	public boolean checkLimitStatusReverse(){
 		
 		if(angleMotor.isFwdLimitSwitchClosed()){
+			
 			return true;
 		}else{
 			return false;
@@ -160,11 +160,21 @@ public class Shooter
 	 * Shooter modeStatus which gathers the ball using the shooter motors in reverse direction
 	 */
 	public void gather(){
+		
 		kickServo.set(servoPosBackStpt);
 		modeStatus = "gather";
 		angleMotor.set(gatherAngleStpt);
-		leftWheel.set(gatherSpeed);
-		rightWheel.set(-gatherSpeed);
+		if(angleMotor.getPosition() < 300){
+			leftWheel.set(gatherSpeed);
+			rightWheel.set(gatherSpeed);
+		}else{
+			leftWheel.set(ZERO_SPD);
+			rightWheel.set(ZERO_SPD);
+		}
+		
+		if(angleMotor.isFwdLimitSwitchClosed()){
+			angleMotor.setPosition(0);
+		}
 	}
 	
 	
@@ -175,15 +185,13 @@ public class Shooter
 	 */
 	public boolean isCollected()
 	{
-		if(collectedStatus){
-			if(!sonarSensor.get() && time <1000){
-				time++;
-			}else if(!sonarSensor.get()){
+		
+			if(sonarSensor.get()){
+				collectedStatus = true;
+			}else{
 				collectedStatus = false;
-				return false;
 			}
-			collectedStatus = true;
-		}
+			
 		return collectedStatus;
 	}
 
@@ -248,10 +256,7 @@ public class Shooter
 	public void goToHigh(){
 		angleMotor.changeControlMode(TalonControlMode.Position);
 
-		if(angleMotor.getPosition()> 500){
-			angleMotor.set(-500);
-
-		}
+	
 	}
 	
 	/**
@@ -259,18 +264,20 @@ public class Shooter
 	 */
 	public void takeInAndGather(){
 		modeStatus = "aimWherever";
-		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+		angleMotor.changeControlMode(TalonControlMode.Position);
 
-		angleMotor.set(-0.3);
+		angleMotor.set(0);
 		
 		kickServo.set(1);
 
 		leftWheel.changeControlMode(TalonControlMode.PercentVbus);
 		rightWheel.changeControlMode(TalonControlMode.PercentVbus);
 		
-		leftWheel.set(0.3);
-		rightWheel.set(0.3);
-		 if(angleMotor.isRevLimitSwitchClosed()){
+		if(angleMotor.getPosition()<300){
+			leftWheel.set(0.3);
+			rightWheel.set(0.3);
+		}
+		 if(angleMotor.isFwdLimitSwitchClosed()){
         	 angleMotor.setPosition(0);
          }
 		
@@ -308,7 +315,7 @@ public class Shooter
 	public void reset()
 	{
 		kickServo.set(1);
-		if(angleMotor.isRevLimitSwitchClosed()){
+		if(angleMotor.isFwdLimitSwitchClosed()){
 			angleMotor.setPosition(0);
 			System.out.println("reset");
 		}
