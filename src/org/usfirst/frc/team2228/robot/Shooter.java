@@ -3,6 +3,7 @@ package org.usfirst.frc.team2228.robot;
 import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
 import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Servo;
 
@@ -10,14 +11,15 @@ public class Shooter
 {
 
 	private final int ZERO_SPD = 0;
+	private DigitalInput limitFwd;
 
 	
-	private String modeStatus = "gather";
+	private String modeStatus = "startup";
 	private enum mode {GATHER, TRANSPORT, AIMHIGH, AIMLOW};
 	private boolean optConditions = false;
 	private double highGoalSpeed = -1;
 	private double lowGoalSpeed = -1;
-	private double gatherSpeed = 0.2;
+	private double gatherSpeed = 0.3;
 	
 	private DigitalInput sonarSensor;
 	private boolean collectedStatus = false;
@@ -61,6 +63,8 @@ public class Shooter
 	public Shooter(int portAngle, int portLeft, int portRight, int sonarPort, int servoPort){
 		
 		
+		limitFwd = new DigitalInput(1);
+
 		//Create all motors
 		angleMotor = new CANTalon(portAngle);
 		leftWheel = new CANTalon(portLeft);
@@ -75,19 +79,26 @@ public class Shooter
     	kickServo.setPosition(1.0);
 
 		
-        angleMotor.changeControlMode(TalonControlMode.Position);
+        angleMotor.setFeedbackDevice(FeedbackDevice.QuadEncoder);
         angleMotor.reverseSensor(false);
-        angleMotor.configNominalOutputVoltage(+0.0f, -0.0f);
-        
-        //set max output voltage both positive and negative at 12volts to motor controllers
-        angleMotor.configPeakOutputVoltage(+3f, -3f);
+//        angleMotor.configEncoderCodesPerRev(497); // if using FeedbackDevice.QuadEncoder
+        //angleMotor.configPotentiometerTurns(XXX), // if using FeedbackDevice.AnalogEncoder or AnalogPot
 
+        /* set the peak and nominal outputs, 12V means full */
+        angleMotor.configNominalOutputVoltage(+0.0f, -0.0f);
+        angleMotor.configPeakOutputVoltage(+12.0f, -12.0f);
+        /* set closed loop gains in slot0 */
         angleMotor.setProfile(0);
         angleMotor.setF(0);
-        angleMotor.setP(0.3);
-        angleMotor.setI(0); 
-        angleMotor.setD(0);
-        angleMotor.setCloseLoopRampRate(rampRateStpt);
+        angleMotor.setP(0.7);
+        angleMotor.setI(0.001); 
+        angleMotor.setD(5);
+        angleMotor.setCloseLoopRampRate(24);
+        angleMotor.setPosition(0);
+        SmartDashboard.putNumber("angle", 0);
+        SmartDashboard.putNumber("negate", 1);
+
+   	 angleMotor.enableLimitSwitch(false, true);
        
         
         leftWheel.setFeedbackDevice(FeedbackDevice.QuadEncoder);
@@ -121,18 +132,8 @@ public class Shooter
 
 	public void manualAim(double d){
 		
-		if(d > 0){
-			angleMotor.set(d*2050*ifReverse );
-		}
-		
-		
-		if(checkLimitStatusForward()){
-			angleMotor.setPosition(2050*ifReverse);
-		}
-		
-		if(checkLimitStatusReverse()){
-			angleMotor.setPosition(0);
-		}
+	
+
 	}
 	
 	public boolean checkLimitStatusForward(){
@@ -162,19 +163,26 @@ public class Shooter
 	public void gather(){
 		
 		kickServo.set(servoPosBackStpt);
-		modeStatus = "gather";
-		angleMotor.set(gatherAngleStpt);
-		if(angleMotor.getPosition() < 300){
+		angleMotor.changeControlMode(TalonControlMode.Position);
+		if(angleMotor.getPosition() > 1500){
 			leftWheel.set(gatherSpeed);
 			rightWheel.set(gatherSpeed);
+//			System.out.println("RAN!!!!");
 		}else{
 			leftWheel.set(ZERO_SPD);
 			rightWheel.set(ZERO_SPD);
 		}
 		
-		if(angleMotor.isFwdLimitSwitchClosed()){
-			angleMotor.setPosition(0);
-		}
+		if(limitFwd.get()){
+//    		System.out.println("RUN ELSE222");
+//    		System.out.println(angleMotor.getPosition());
+			angleMotor.set(1800);
+		}else{
+    		angleMotor.setPosition(1750);
+//    		System.out.println("RUN ELSE");
+			angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+    		angleMotor.set(0);
+    	}
 	}
 	
 	
@@ -212,17 +220,6 @@ public class Shooter
 		
 	}
 	
-	public void goToVertical(){
-		if(!(angleMotor.getPosition()>verticalPosStpt+100 && angleMotor.getPosition() <verticalPosStpt-100)){
-			angleMotor.set(verticalPosStpt);
-			leftWheel.set(ZERO_SPD);
-			rightWheel.set(ZERO_SPD);
-		}else{
-			modeStatus = "transport";
-		}
-		kickServo.set(servoPosBackStpt);
-		
-	}
 	
 	/**
 	 * Aims the shooter for the high goal and speeds up shooter wheels to optimal high goal velocity
@@ -235,54 +232,84 @@ public class Shooter
 		
 		leftWheel.set(-1);
 		rightWheel.set(-1);
-		System.out.println(leftWheel.getSpeed());
+//		System.out.println(leftWheel.getSpeed());
 	}
 	
 	public void aimUp(){
-		modeStatus = "aimhigh";
-		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
-
-	
-		
-		angleMotor.set(0.4);
-		System.out.println("inTargetRange");
-		kickServo.set(1);
-
-		
-		
-		
-	}
-	
-	public void goToHigh(){
 		angleMotor.changeControlMode(TalonControlMode.Position);
 
 	
-	}
+		
+		angleMotor.set(725);
 	
-	/**
-	 * Aims the shooter for the low goal and speeds up shooter wheels to optimal low goal velocity
-	 */
-	public void takeInAndGather(){
-		modeStatus = "aimWherever";
-		angleMotor.changeControlMode(TalonControlMode.Position);
-
-		angleMotor.set(0);
+		
 		
 		kickServo.set(1);
 
-		leftWheel.changeControlMode(TalonControlMode.PercentVbus);
-		rightWheel.changeControlMode(TalonControlMode.PercentVbus);
 		
-		if(angleMotor.getPosition()<300){
-			leftWheel.set(0.3);
-			rightWheel.set(0.3);
+		if(angleMotor.getPosition() >450 && angleMotor.getPosition() < 950){
+			leftWheel.set(-1);
+			rightWheel.set(-1);
+		}else{
+			leftWheel.set(0);
+			rightWheel.set(0);
 		}
-		 if(angleMotor.isFwdLimitSwitchClosed()){
-        	 angleMotor.setPosition(0);
-         }
+		
+//		if(angleMotor.getError()<25 && angleMotor.getSpeed() < 50){
+//			
+//			setMode("shootOptimal");
+//		}
+		
+	}
+	
+	public void fightdaPOWA(){
+		angleMotor.changeControlMode(TalonControlMode.Position);
+
+	
+		
+		angleMotor.set(725);
+	
+		
+		
+		kickServo.set(1);
+
+		
+//		if(angleMotor.getError()<25 && angleMotor.getSpeed() < 50){
+//			
+//			setMode("shootOptimal");
+//		}
 		
 	}
 
+	
+//	/**
+//	 * Aims the shooter for the low goal and speeds up shooter wheels to optimal low goal velocity
+//	 */
+//	public void takeInAndGather(){
+//		modeStatus = "aimWherever";
+//		
+//		
+//		kickServo.set(1);
+//
+//		leftWheel.changeControlMode(TalonControlMode.PercentVbus);
+//		rightWheel.changeControlMode(TalonControlMode.PercentVbus);
+//		
+//		if(angleMotor.getPosition()<300){
+//			leftWheel.set(0.3);
+//			rightWheel.set(0.3);
+//		}
+//		
+//		if(limitFwd.get()){
+//			angleMotor.set(0);
+//		}else{
+//    		angleMotor.setPosition(0);
+//    		System.out.println("RUN ELSE");
+//			angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+//    		angleMotor.set(0);
+//    	}
+//		
+//	}
+//
 
 	/**
 	 * Checks to see if the bot is in firing position and the shooter wheels are spinning 
@@ -315,19 +342,32 @@ public class Shooter
 	public void reset()
 	{
 		kickServo.set(1);
-		if(angleMotor.isFwdLimitSwitchClosed()){
-			angleMotor.setPosition(0);
-			System.out.println("reset");
-		}
+		
 		
 		leftWheel.changeControlMode(TalonControlMode.PercentVbus);
 		rightWheel.changeControlMode(TalonControlMode.PercentVbus);
 		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
 
 		angleMotor.set(0);
+		
 		leftWheel.set(0);
 		rightWheel.set(0);
 		
+	}
+	
+	public void calibrate(){
+		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+		if(limitFwd.get()){
+			angleMotor.set(0.4);
+//    		System.out.println("RUN ELSE222");
+//    		System.out.println(angleMotor.getPosition());
+		}else{
+    		angleMotor.setPosition(1750);
+//    		System.out.println("RUN ELSE");
+    		setMode("not");
+			angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+    		angleMotor.set(0);
+    	}
 	}
 	
 }
