@@ -3,35 +3,24 @@ package org.usfirst.frc.team2228.robot;
 import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
 import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
+import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.PWM;
-import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Talon;
 
 public class Aquirer
 {
 
-	private final int ZERO_SPD = 0;
 
-	private double gatherSpeed = 0.2;
 	
 	
 	private CANTalon elevatorMotor;
-	private double gatherAngleStpt = 0;
 
 	
-	private Talon spinspinwinwin;
-	private int rampRateStpt = 24;
+	private VictorSP spinspinwinwin;
 	
-	private int ifReverse = 1;
 
 
-	private int verticalPosStpt = 512 * ifReverse;
 
-	private int transportPosStpt = 200;
-	private DigitalInput limitFwd;
-	private DigitalInput limitBwd;
 
 	private boolean first = false;
 
@@ -52,32 +41,26 @@ public class Aquirer
 	 * @param sonarPort
 	 * @param servoPort
 	 */
-	public Aquirer(int portAngle, int portSpin, int limitFwdP, int limitBwdP){
+	public Aquirer(int portAngle, int portSpin){
 		
 		
 		//Create all motors
-		limitFwd = new DigitalInput(limitFwdP);
-		limitBwd = new DigitalInput(limitBwdP);
 
-		spinspinwinwin = new Talon(portSpin);
+
+		spinspinwinwin = new VictorSP(portSpin);
 		
 		elevatorMotor = new CANTalon(portAngle);
 		
         elevatorMotor.setFeedbackDevice(FeedbackDevice.QuadEncoder);
         elevatorMotor.reverseSensor(true);
-//        _elevatorMotor.configEncoderCodesPerRev(497); // if using FeedbackDevice.QuadEncoder
-        //_elevatorMotor.configPotentiometerTurns(XXX), // if using FeedbackDevice.AnalogEncoder or AnalogPot
 
-        /* set the peak and nominal outputs, 12V means full */
         elevatorMotor.configNominalOutputVoltage(+0.0f, -0.0f);
         elevatorMotor.configPeakOutputVoltage(+12.0f, -12.0f);
-        /* set closed loop gains in slot0 */
         elevatorMotor.setProfile(0);
         elevatorMotor.setF(0);
         elevatorMotor.setP(0.6);
         elevatorMotor.setI(0.00005); 
         elevatorMotor.setD(0);
-//        elevatorMotor.setCloseLoopRampRate(24);
         elevatorMotor.setPosition(0);
         SmartDashboard.putNumber("angle", 0);
         SmartDashboard.putNumber("negate", 1);
@@ -92,18 +75,18 @@ public class Aquirer
 
 		
     	
-    	elevatorMotor.set(6000);
+    	elevatorMotor.set(6100);
 //		System.out.println("HERE!!!");
 
 		if(elevatorMotor.isFwdLimitSwitchClosed()){
 			elevatorMotor.setPosition(6200);
 		}
     	
-    	if(elevatorMotor.getError()<100){
+//    	if(elevatorMotor.getError()<200){
     		spinspinwinwin.set(-1);
-    	}else{
-    		spinspinwinwin.set(0);
-    	}
+//    	}else{
+//    		spinspinwinwin.set(0);
+//    	}
 //		System.out.println(elevatorMotor.getPosition());
 
     
@@ -132,6 +115,7 @@ public class Aquirer
 	public void raise(){
 		elevatorMotor.changeControlMode(TalonControlMode.Position);
 		elevatorMotor.set(3637);
+		spinspinwinwin.set(0);
 		if(elevatorMotor.isRevLimitSwitchClosed()){
 			elevatorMotor.setPosition(0);
 		}
@@ -168,7 +152,7 @@ public class Aquirer
 		
 		if(!elevatorMotor.isRevLimitSwitchClosed()){
 	
-    		elevatorMotor.set(2000);
+    		elevatorMotor.set(1700);
 //			System.out.println("HERE!!!");
 
     	}else{
@@ -193,9 +177,8 @@ public class Aquirer
 		return elevatorMotor.isRevLimitSwitchClosed();
 	}
 
-	public boolean notFirst()
+	public boolean calibrated()
 	{
-		// TODO Auto-generated method stub
 		return first;
 	}
 

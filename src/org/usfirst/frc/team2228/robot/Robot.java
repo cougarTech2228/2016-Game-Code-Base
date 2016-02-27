@@ -2,9 +2,9 @@
 package org.usfirst.frc.team2228.robot;
 
 
-import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.CANTalon;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
@@ -14,112 +14,113 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 
 /**
- * The VM is configured to automatically run this class, and to call the
- * functions corresponding to each mode, as described in the IterativeRobot
- * documentation. If you change the name of this class or the package after
- * creating this project, you must also update the manifest file in the resource
- * directory.
+ * 
+ * Class: Robot
+ * Author: HARRY 
+ * Date: 2/27/2016
+ * 
  */
 public class Robot extends IterativeRobot {
 
+	
+	//Object Variables
 	private Joystick joy;
-
-    
 	private Shooter shooter;
-	private IMU imu;
-	DriveBase drive;
-	CANTalon leftMotor;
-	CANTalon rightMotor;
-	CANTalon left2;
-    CANTalon right2;
-
-    AnalogInput sonarDistance;
-    
-    double rSpeed = 0;
-    double lSpeed = 0;
-    double mode = 1;
-    
-    Aquirer aquire;
+	private CANTalon leftMaster;
+	private CANTalon rightMaster;
+	private CANTalon leftSlave;
+    private CANTalon rightSlave;
+    private Aquirer aquire;
     private BuiltInAccelerometer accel;
-    String autoMode = "lowbar";
-    enum State {APPROACH, CROSSING,APPROACHCHEVAL,ATCHEVAL,APPROACHWALL,CROSSWALL}
-    State state = State.APPROACHCHEVAL; 
+    private CameraServer server;
+    private Debug debug;
+    
+    //Autonomous States
+    enum State {APPROACH_LOW_AQUIRE, CROSSING_LOW_AQUIRE,APPROACH_CHEVAL,
+    	CROSS_CHEVAL,APPROACH_GENERAL,CROSS_GENERAL, NOTHING}
+    State state;
 
+    //Auto flags
+    private boolean autoInitCheck = false;
 	private boolean done = false;
 	private boolean done2 = false;
-
-
 	private boolean done3 = false;
-
+	private boolean once = false;
     
+    
+    //Teleop drive variables
+    private double rSpeed = 0;
+    private double lSpeed = 0;
+    private double speedDivisor = 1;
+    
+    
+
+
+    /**
+     * robotInit called upon start up, instantiates all objects and primitives
+     * as well as setting defaults
+     * 
+     */
     public void robotInit() {
     	
-    	accel = new BuiltInAccelerometer();
-    	joy = new Joystick(0);
-    	SmartDashboard.putString("Key123", "TestValue");
-    
-    	
-    	rightMotor = new CANTalon(2);
-    	right2 = new CANTalon(1);
-    	leftMotor = new CANTalon(3);
-    	left2= new CANTalon(4);
-    	
-    	sonarDistance = new AnalogInput(0);
-    	
-    	//1: port for angle motor
-    	//2: port for left shooter wheel
-    	//3: port for right motor wheel
-    	//4: port for sonar sensor digital input
-    	//5: port for servo motor pwm
-    	shooter = new Shooter(7,5,6,0,0);
-    	aquire = new Aquirer(8,1,2,3);
-    	
-    	imu = new IMU();
-    	
-    	
-	  	  rightMotor.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-	      rightMotor.reverseSensor(false);
-	//      rightMotor.configEncoderCodesPerRev(225); // if using FeedbackDevice.QuadEncoder
-	      //rightMotor.configPotentiometerTurns(XXX), // if using FeedbackDevice.AnalogEncoder or AnalogPot
-	
-	      /* set the peak and nominal outputs, 12V means full */
-	      rightMotor.configNominalOutputVoltage(+0.0f, -0.0f);
-	      rightMotor.configPeakOutputVoltage(+12.0f, -12.0f);
-	      /* set closed loop gains in slot0 */
-	      rightMotor.setProfile(0);
-	      rightMotor.setF(0);
-	      rightMotor.setP(0.21);
-	      rightMotor.setI(0.0001); 
-	      rightMotor.setD(0);
-//	      rightMotor.setVoltageRampRate(5);
-	      
-	      
-
-      
-      
-    	  leftMotor.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-          leftMotor.reverseSensor(false);
-//          leftMotor.configEncoderCodesPerRev(225); // if using FeedbackDevice.QuadEncoder
-          //leftMotor.configPotentiometerTurns(XXX), // if using FeedbackDevice.AnalogEncoder or AnalogPot
-
-          /* set the peak and nominal outputs, 12V means full */
-          leftMotor.configNominalOutputVoltage(+0.0f, -0.0f);
-          leftMotor.configPeakOutputVoltage(+12.0f, -12.0f);
-          /* set closed loop gains in slot0 */
-          leftMotor.setProfile(0);
-          leftMotor.setF(0);
-          leftMotor.setP(0.41);
-          leftMotor.setI(0.0001); 
-          leftMotor.setD(0);
-         
-//          leftMotor.setVoltageRampRate(5);
-          
-          
+        server = CameraServer.getInstance();
+        server.setQuality(50);
         
+        //the camera name (ex "cam0") can be found through the roborio web interface
+        server.startAutomaticCapture("cam1");
+    	
+    	accel = new BuiltInAccelerometer();
+    	joy = new Joystick(RobotMap.JOYSTICK_PORT);
+    
+    	SmartDashboard.putNumber("offsetx", 0);
+    	SmartDashboard.putNumber("offsety",0);
+    	SmartDashboard.putBoolean("found", false);
+    	SmartDashboard.putBoolean("vision", false);
+    	
+    	rightMaster = new CANTalon(RobotMap.RIGHT_MOTOR_MSTR_PORT);
+    	rightSlave = new CANTalon(RobotMap.RIGHT_MOTOR_SLV_PORT);
+    	leftMaster = new CANTalon(RobotMap.LEFT_MOTOR_MSTR_PORT);
+    	leftSlave= new CANTalon(RobotMap.LEFT_MOTOR_SLV_PORT);
+    	    	
+    	shooter = new Shooter(RobotMap.SHOOTER_ANGLE_PORT,RobotMap.SHOOTER_WHEEL_LEFT_PORT,RobotMap.SHOOTER_WHEEL_RIGHT_PORT,RobotMap.BALL_DETECT_PORT,RobotMap.SHOOTER_SERVO_PORT);
+    	aquire = new Aquirer(RobotMap.AQUIRE_ARM_ANGLE_PORT,RobotMap.GATHER_TALON_PORT);
+    	    	
+    	SmartDashboard.putNumber("right1MotorVoltage", 0);
+    	SmartDashboard.putNumber("rightSlaveMotorVoltage", 0);
+    	SmartDashboard.putNumber("left1MotorVoltage", 0);
+    	SmartDashboard.putNumber("leftSlaveMotorVoltage", 0);
 
-//          right2.setVoltageRampRate(5);
-//          left2.setVoltageRampRate(5);
-          
+    	
+	  	rightMaster.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+	    rightMaster.reverseSensor(false);
+
+	      rightMaster.configNominalOutputVoltage(+0.0f, -0.0f);
+	      rightMaster.configPeakOutputVoltage(+1.0f, -1.0f);
+	      rightMaster.setProfile(0);
+	      rightMaster.setF(0);
+	      rightMaster.setP(0.21);
+	      rightMaster.setI(0.0001); 
+	      rightMaster.setD(0);
+	      
+	      
+
+      
+      
+    	  leftMaster.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+          leftMaster.reverseSensor(false);
+          leftMaster.configNominalOutputVoltage(+0.0f, -0.0f);
+          leftMaster.configPeakOutputVoltage(+1.0f, -1.0f);
+          leftMaster.setProfile(0);
+          leftMaster.setF(0);
+          leftMaster.setP(0.21);
+          leftMaster.setI(0.0001); 
+          leftMaster.setD(0);
+         
+
+          state = State.APPROACH_CHEVAL; 
+          SmartDashboard.putNumber("angleS", 397.2);
+          SmartDashboard.putNumber("Defense", 1);
+         
     }
     
   
@@ -128,25 +129,35 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousInit() {
 
-//	      rightMotor.setCloseLoopRampRate(5);
-//	      right2.setCloseLoopRampRate(5);
-//	      leftMotor.setCloseLoopRampRate(5);
-//	      left2.setCloseLoopRampRate(5);
-	      rightMotor.setPosition(0);
-	    	leftMotor.setPosition(0);
+
+	        rightMaster.setPosition(0);
+	    	leftMaster.setPosition(0);
 	    	shooter.setFirst(false);
 	    	aquire.setFirst(false);
+	    	if(SmartDashboard.getNumber("Defense") == 1){
+	    		//for lowbar and portcullis
+	    		state = State.APPROACH_LOW_AQUIRE;
+	    	}else if(SmartDashboard.getNumber("Defense") == 2){
+	    		//for cheval
+	    		state = State.APPROACH_CHEVAL;
+	    	}else if(SmartDashboard.getNumber("Defense") == 3){
+	    		//rock wall, moat, ramparts
+	    		state = State.APPROACH_GENERAL;
+	    	}else{
+	    		//staying still and calibrating
+	    		state = State.NOTHING;
+	    	}
 
     }
     
-    public void autonomousInit2() {
+    /**
+     * 
+     */
+    public void resetInTeleop() {
 
-//	      rightMotor.setCloseLoopRampRate(5);
-//	      right2.setCloseLoopRampRate(5);
-//	      leftMotor.setCloseLoopRampRate(5);
-//	      left2.setCloseLoopRampRate(5);
-	      rightMotor.setPosition(0);
-	    	leftMotor.setPosition(0);
+
+	        rightMaster.setPosition(0);
+	    	leftMaster.setPosition(0);
 	    	shooter.setFirst(false);
 	    	aquire.setFirst(false);
 	    	done = false;
@@ -155,63 +166,81 @@ public class Robot extends IterativeRobot {
 	    	aquire.setHere(false);
 	    	aquire.setHere4(false);
 
-	    	state = State.APPROACH;
+	    	
 	    	System.out.println("AutoInitRun");
 	    	aquire.setOnce(false);
+	    	once = false;
 
-  }
+    }
     
     /**
      * This function is called periodically during autonomous
      */
     public void autonomousPeriodic() {
 
-    	leftMotor.changeControlMode(TalonControlMode.Position);
-		rightMotor.changeControlMode(TalonControlMode.Position);
-	      right2.changeControlMode(TalonControlMode.Follower);
-	      right2.set(rightMotor.getDeviceID());
-	      left2.changeControlMode(TalonControlMode.Follower);
-          left2.set(leftMotor.getDeviceID());
-//		right2.setVoltageRampRate(5);
-//        left2.setVoltageRampRate(5);
-		
-		System.out.println(shooter.getFirst());
-		System.out.println(shooter.checkLimitStatusForward());
-		
-		System.out.println();
-
-//    	System.out.println("right pos: " + rightMotor.get());
-//    	System.out.println("left pos: " + leftMotor.get());
     	
-    	if(state == State.APPROACH){
-	    	if(!shooter.notFirst()){
+    	if(!autoInitCheck){
+    	    rightMaster.setPosition(0);
+ 	    	leftMaster.setPosition(0);
+ 	    	shooter.setFirst(false);
+ 	    	aquire.setFirst(false);
+ 	    	if(SmartDashboard.getNumber("Defense") == 1){
+ 	    		//for lowbar and portcullis
+ 	    		state = State.APPROACH_LOW_AQUIRE;
+ 	    	}else if(SmartDashboard.getNumber("Defense") == 2){
+ 	    		//for cheval
+ 	    		state = State.APPROACH_CHEVAL;
+ 	    	}else if(SmartDashboard.getNumber("Defense") == 3){
+ 	    		//rock wall, moat, ramparts
+ 	    		state = State.APPROACH_GENERAL;
+ 	    	}else{
+ 	    		//staying still and calibrating
+ 	    		state = State.NOTHING;
+ 	    	}
+ 	    	
+    		leftMaster.changeControlMode(TalonControlMode.Position);
+    		rightMaster.changeControlMode(TalonControlMode.Position);
+    	    rightSlave.changeControlMode(TalonControlMode.Follower);
+    	    rightSlave.set(rightMaster.getDeviceID());
+    	    leftSlave.changeControlMode(TalonControlMode.Follower);
+            leftSlave.set(leftMaster.getDeviceID());
+     		autoInitCheck = true;
+     		
+    	}
+    	
+    	
+
+    	
+    	if(state == State.APPROACH_LOW_AQUIRE){
+    		
+        	
+
+    		
+	    	if(!shooter.calibrated()){
 	    		shooter.calibrate();
-	    		System.out.println("RUNNING THIS");
-	    	}else{
-	    		if(!autoMode.equals("lowbar")){
-	    			shooter.fightdaPOWA();
-	    		}
 	    	}
 	    	
-	    	if(!aquire.notFirst()){
+	    	if(!aquire.calibrated()){
 	    		aquire.calibrate();
-	    	}else{
-	    		
-	    		if(!autoMode.equals("lowbar")){
-	        		aquire.overCheval();
-	    		}
 	    	}
-	    	rightMotor.set(-856.8*2.583);
-    		leftMotor.set(856.8*2.583);
-	    		if(rightMotor.getPosition() <-856.8*2.583+50){
-		    		rightMotor.setPosition(0);
-		    		leftMotor.setPosition(0);
-		    		rightMotor.set(0);
-		    		leftMotor.set(0);
-		    		state = State.CROSSING;
-		    	}
-    	}else if(state == State.APPROACHCHEVAL){
-	    	if(!shooter.notFirst()){
+	    	
+	    	//2.583 = wheel revs to go 58 inches
+	    	rightMaster.set(-RobotMap.COUNTS_PER_REV_DRIVE *2.583);
+    		leftMaster.set(RobotMap.COUNTS_PER_REV_DRIVE *2.583);
+    		
+	    	if(rightMaster.getPosition() < RobotMap.COUNTS_PER_REV_DRIVE*2.583+50){
+		    		rightMaster.setPosition(0);
+		    		leftMaster.setPosition(0);
+		    		rightMaster.set(0);
+		    		leftMaster.set(0);
+		    		state = State.CROSSING_LOW_AQUIRE;
+		    }
+	    	if(rightMaster.getOutputCurrent()  > 50){
+        		
+        	}
+	    	
+    	}else if(state == State.APPROACH_CHEVAL){
+	    	if(!shooter.calibrated()){
 	    		shooter.calibrateUp();
 	    		System.out.println("RUNNING THIS");
 	    	}else{
@@ -219,22 +248,22 @@ public class Robot extends IterativeRobot {
 	    		
 	    	}
 	    	
-	    	if(!aquire.notFirst()){
+	    	if(!aquire.calibrated()){
 	    		aquire.calibrateUp();
 	    	}else{
 	        	aquire.overCheval();
 	    	}
-	    	rightMotor.set(-856.8*2.583+200);
-    		leftMotor.set(856.8*2.583-200);
-	    		if(rightMotor.getPosition() <-856.8*2.583+700){
-		    		rightMotor.setPosition(0);
-		    		leftMotor.setPosition(0);
-		    		rightMotor.set(0);
-		    		leftMotor.set(0);
-		    		state = State.ATCHEVAL;
+	    	rightMaster.set(-RobotMap.COUNTS_PER_REV_DRIVE*2.583+600);
+    		leftMaster.set(RobotMap.COUNTS_PER_REV_DRIVE*2.583-600);
+	    		if(rightMaster.getPosition() <-RobotMap.COUNTS_PER_REV_DRIVE*2.583+1200){
+		    		rightMaster.setPosition(0);
+		    		leftMaster.setPosition(0);
+		    		rightMaster.set(0);
+		    		leftMaster.set(0);
+		    		state = State.CROSS_CHEVAL;
 		    		
 		    	}
-    	}else if(state == State.ATCHEVAL){
+    	}else if(state == State.CROSS_CHEVAL){
     		
     		if(!aquire.getHere()&&!done){
     			aquire.fightdaPOWA();
@@ -245,125 +274,81 @@ public class Robot extends IterativeRobot {
     		
     		if(!done2){
 	    		if(done){
-	    			rightMotor.set(-856.8*0.527-900);
-	    			leftMotor.set(856.8*0.527+900);
+	    			rightMaster.set(-RobotMap.COUNTS_PER_REV_DRIVE*0.527-900);
+	    			leftMaster.set(RobotMap.COUNTS_PER_REV_DRIVE*0.527+900);
 	    		}
-	    		if(rightMotor.getPosition()<-856.8*0.527-600){
+	    		if(rightMaster.getPosition()<-RobotMap.COUNTS_PER_REV_DRIVE*0.527-600){
 	    			done2 = true;
 	    			aquire.overCheval();
-	    			rightMotor.setPosition(0);
-		    		leftMotor.setPosition(0);
-		    		rightMotor.set(0);
-		    		leftMotor.set(0);
+	    			rightMaster.setPosition(0);
+		    		leftMaster.setPosition(0);
+		    		rightMaster.set(0);
+		    		leftMaster.set(0);
 	    		}
     		}else if(!done3){
     			aquire.overCheval();
 
-    			rightMotor.set(-856.8*0.527-1300);
-    			leftMotor.set(856.8*0.527+1300);
-//    			if(aquire.getHere4()){
-//    				done3  = true;
-//    			}
+    			rightMaster.set(-RobotMap.COUNTS_PER_REV_DRIVE*0.527-1300);
+    			leftMaster.set(RobotMap.COUNTS_PER_REV_DRIVE*0.527+1300);
     		}
-//    		else{
-//    			aquire.downFast();
-//    			rightMotor.set(-856.8*0.527-900);
-//    			leftMotor.set(856.8*0.527+900);
-//    		}
-    		
-    	}	
-//    	else if(state == State.APPROACHPORTCULLIS){
-//    		
-////    		rightMotor.set((-856.8*3.6));
-////    		leftMotor.set((856.8*3.6));
-//    		if(!shooter.notFirst()){
-//	    		shooter.calibrate();
-//	    		System.out.println("RUNNING THIS");
-//	    	}else{
-//	    		shooter.fightdaPOWA();	
-//	    	}
-//	    	
-//	    	if(!aquire.notFirst()){
-//	    		aquire.calibrate();
-//	    	}
-//	    	if(aquire.getPosition()>3000){
-//	    		rightMotor.set(-856.8*2.583+300);
-//	    		leftMotor.set(856.8*2.583-300);
-//	    	}
-//	    		if(rightMotor.getPosition() <-856.8*2.583+400 && aquire.checkLimitStatusForward()){
-//		    		rightMotor.setPosition(0);
-//		    		leftMotor.setPosition(0);
-//		    		rightMotor.set(0);
-//		    		leftMotor.set(0);
-//		    		state = State.CROSSINGPORTCULLIS;
-//		    	}
-//    		
-//    	}else if(state == State.CROSSINGPORTCULLIS){
-//    		shooter.fightdaPOWA();	
-//    		aquire.raise();
-//    		
-//    		
-//    	}
     	
-    	else if(state == State.APPROACHWALL){
-	    	if(!shooter.notFirst()){
+    	}else if(state == State.APPROACH_GENERAL){
+	    	if(!shooter.calibrated()){
 	    		shooter.calibrateUp();
 	    		System.out.println("RUNNING THIS");
 	    	}else{
 	    			shooter.fightdaPOWA();
 	    	}
 	    	
-	    	if(!aquire.notFirst()){
+	    	if(!aquire.calibrated()){
 	    		aquire.calibrateUp();
 	    	}else{
 	        		aquire.overWall();
 	    	}
-	    	rightMotor.set(-856.8*2.583-200);
-    		leftMotor.set(856.8*2.583);
-	    		if(rightMotor.getPosition() <(-856.8*2.583-200)+50){
-		    		rightMotor.setPosition(0);
-		    		leftMotor.setPosition(0);
-		    		rightMotor.set(0);
-		    		leftMotor.set(0);
-		    		state = State.CROSSWALL;
+	    	rightMaster.set(-RobotMap.COUNTS_PER_REV_DRIVE*2.583-200);
+    		leftMaster.set(RobotMap.COUNTS_PER_REV_DRIVE*2.583);
+	    		if(rightMaster.getPosition() <(-RobotMap.COUNTS_PER_REV_DRIVE*2.583-200)+50){
+		    		rightMaster.setPosition(0);
+		    		leftMaster.setPosition(0);
+		    		rightMaster.set(0);
+		    		leftMaster.set(0);
+		    		state = State.CROSS_GENERAL;
 		    	}
-    	}else if(state == State.CROSSWALL){
+    	}else if(state == State.CROSS_GENERAL){
     	
     		shooter.fightdaPOWA();
     		aquire.overWall();
     		
-    		if(rightMotor.getPosition() <((-856.8*2.583/2))+50){
-	    		rightMotor.setPosition(0);
-	    		leftMotor.setPosition(0);
-	    		rightMotor.set(0);
-	    		leftMotor.set(0);
+    		if(rightMaster.getPosition() <((-RobotMap.COUNTS_PER_REV_DRIVE*2.583/2))+50){
+	    		rightMaster.setPosition(0);
+	    		leftMaster.setPosition(0);
+	    		rightMaster.set(0);
+	    		leftMaster.set(0);
     		}else{
-    			rightMotor.set((856.8*2.583)/2);
-    			leftMotor.set((856.8*2.583)/2);
+    			rightMaster.set((RobotMap.COUNTS_PER_REV_DRIVE*2.583)/2);
+    			leftMaster.set((RobotMap.COUNTS_PER_REV_DRIVE*2.583)/2);
     		}
   
     	}
-    	else if(state == State.CROSSING){
+    	else if(state == State.CROSSING_LOW_AQUIRE){
     		if(shooter.checkLimitStatusForward() && aquire.checkLimitStatusForward()){
 
-    			rightMotor.set(-856.8*2.489);
-    			leftMotor.set(856.8*2.489);
+    			//2.489 = wheel revs per 52
+    			rightMaster.set(-RobotMap.COUNTS_PER_REV_DRIVE*2.489);
+    			leftMaster.set(RobotMap.COUNTS_PER_REV_DRIVE*2.489);
     		}else{
 	    		aquire.calibrate();
 	    		shooter.calibrate();
     		}
+    		
+    	}else if(state == State.NOTHING){
+    		rightMaster.setPosition(0);
+    		leftMaster.setPosition(0);
+    		rightMaster.set(0);
+    		leftMaster.set(0);
+    		aquire.calibrate();
+    		shooter.calibrate();
     	}
-    	
-    	
-    	
-    	
-    	
-    	System.out.println("Accel x: " + accel.getX());
-    	System.out.println("Accel y: " + accel.getY());
-    	System.out.println("Accel z: " + accel.getZ());
-    	System.out.println();
-
-    	
     }
 
 
@@ -371,13 +356,15 @@ public class Robot extends IterativeRobot {
     /**
      * This function is called periodically during operator control
      */
-    @SuppressWarnings("deprecation")
 	public void teleopPeriodic() {
 
-	      right2.changeControlMode(TalonControlMode.Follower);
-	      right2.set(rightMotor.getDeviceID());
-	      left2.changeControlMode(TalonControlMode.Follower);
-          left2.set(leftMotor.getDeviceID());
+    	if(!once){
+	      rightSlave.changeControlMode(TalonControlMode.Follower);
+	      rightSlave.set(rightMaster.getDeviceID());
+	      leftSlave.changeControlMode(TalonControlMode.Follower);
+          leftSlave.set(leftMaster.getDeviceID());
+          once = true;
+    	}
     	done = false;
     	rSpeed = -joy.getMagnitude();
     	lSpeed = -joy.getMagnitude();
@@ -385,19 +372,15 @@ public class Robot extends IterativeRobot {
 		
     	if(joy.getRawButton(12)){
 
-    		autonomousInit2();
+    		resetInTeleop();
     		
     	}
 
-//    	if(joy.getRawButton(10)){
-//    		SmartDashboard.putString("Key123", "work");
-//    		System.out.println( (sonarDistance.getVoltage()*102.4));
-//    		
-//    	}
-//    	
     	
     	if(joy.getRawButton(1)){
 			shooter.setMode("shootOptimal");
+		}else{
+			shooter.setMode("not");
 		}
     	
     	if(joy.getRawButton(2)){
@@ -410,28 +393,38 @@ public class Robot extends IterativeRobot {
         
 		if(joy.getRawButton(4)){
 			shooter.setMode("reset");
+			shooter.setShooting(false);
 		}
 		
 		if(joy.getRawButton(5)){
-			shooter.setMode("calibrate");
+			shooter.setMode("calibratedown");
+			shooter.setShooting(false);
+
 		}
 		
 		if(joy.getRawButton(6)){
-			shooter.setMode("fight");
+			shooter.setMode("bring_aquire_arm_down");
 		}
 		
 		if(joy.getRawButton(7)){
-			shooter.setMode("win");
+			shooter.setMode("lowgoal");
 		}
 		
 		if(joy.getRawButton(8)){
 			shooter.setMode("port");
 		}
+		if(joy.getRawButton(9)){
+			shooter.setMode("maybe");
+		}
+		if(joy.getRawButton(10)){
+			shooter.setMode("testUp");
+		}
+	
 		
 		
 		if(shooter.getMode().equals("startup")){
 			shooter.calibrate();
-			aquire.reset();
+			aquire.calibrate();
 		}else if(shooter.getMode().equals("gather")){
 			shooter.gather();
 			aquire.gather();
@@ -440,29 +433,33 @@ public class Robot extends IterativeRobot {
 			shooter.startShoot();
 			aquire.reset();
 		}else if(shooter.getMode().equals("aimhigh")){
-			shooter.aimUp();
+			shooter.aimUp2();
 			aquire.reset();
-		}else if(shooter.getMode().equals("calibrate")){
+		}else if(shooter.getMode().equals("calibratedown")){
 			shooter.calibrate();
 			aquire.calibrate();
-		}else if(shooter.getMode().equals("fight")){
+		}else if(shooter.getMode().equals("bring_aquire_arm_down")){
 			shooter.fightdaPOWA();
 			aquire.fightdaPOWA();
-		}else if(shooter.getMode().equals("win")){
-			shooter.fightdaPOWA();
+		}else if(shooter.getMode().equals("lowgoal")){
+			
+			shooter.aimLow();
 			aquire.overCheval();
+			
 		}else{
-			shooter.reset();
-			if(shooter.getMode().equals("port")){
-//				System.out.println("here2");
-				aquire.raise();
+			
+			if(!shooter.getShooting()){
+				shooter.fightdaPOWA();
 			}else{
-//				System.out.println("here1");
-				aquire.reset();
+				shooter.aimUp2();
 			}
+
+			aquire.overCheval();
+			
 		}
 		
 		
+	
 		
 		if(joy.getAxis(Joystick.AxisType.kY) > 0.15){
     		
@@ -486,31 +483,43 @@ public class Robot extends IterativeRobot {
 
     	}
     		
-    	if(!joy.getRawButton(11)){
-    		leftMotor.changeControlMode(TalonControlMode.PercentVbus);
-    		rightMotor.changeControlMode(TalonControlMode.PercentVbus);
-
-	    	leftMotor.set(lSpeed/mode);
-	    	//WIRED BACKWARDS!!!!!!!!
-//	    	left2.set(lSpeed/mode);
-	    	rightMotor.set(rSpeed/mode);
-//	    	right2.set(rSpeed/mode);
-	    	
-	    	rightMotor.setPosition(0);
-	    	leftMotor.setPosition(0);
+    	
+    	if(joy.getRawButton(11)){
+    			SmartDashboard.putBoolean("vision", true);
     	}else{
-    		leftMotor.changeControlMode(TalonControlMode.Position);
-    		rightMotor.changeControlMode(TalonControlMode.Position);
-//    		right2.setVoltageRampRate(5);
-//            left2.setVoltageRampRate(5);
-    		rightMotor.set(-856.8*2.583);
-    		leftMotor.set(856.8*2.583);
-//	    	System.out.println("right pos: " + rightMotor.get());
-//	    	System.out.println("left pos: " + leftMotor.get());
-
-
+    			SmartDashboard.putBoolean("vision", false);
     	}
     	
+    	
+    	if(!joy.getRawButton(11)){
+    		leftMaster.changeControlMode(TalonControlMode.PercentVbus);
+    		rightMaster.changeControlMode(TalonControlMode.PercentVbus);
+
+	    	leftMaster.set(lSpeed/speedDivisor);
+	    	rightMaster.set(rSpeed/speedDivisor);
+	    	rightMaster.setPosition(0);
+	    	leftMaster.setPosition(0);
+    	}
+    	else if(SmartDashboard.getBoolean("found")){
+    		if(SmartDashboard.getNumber("offsetX") >15){
+    			rSpeed = -(SmartDashboard.getNumber("offsetX")/200) - 0.3;
+    			lSpeed = -(SmartDashboard.getNumber("offsetX")/200) - 0.3;
+    		}else if(SmartDashboard.getNumber("offsetX") <-15){
+    			rSpeed = -(SmartDashboard.getNumber("offsetX")/200) + 0.3;
+    			lSpeed = -(SmartDashboard.getNumber("offsetX")/200) + 0.3;
+    		}else{
+    			rSpeed = 0;
+    			lSpeed = 0;
+    		}
+    		leftMaster.set(lSpeed/speedDivisor);
+	    	rightMaster.set(rSpeed/speedDivisor);
+    	}
+    	
+    	SmartDashboard.putNumber("right1MotorVoltage", rightMaster.getOutputCurrent());
+    	SmartDashboard.putNumber("right2MotorVoltage", rightSlave.getOutputCurrent());
+    	SmartDashboard.putNumber("left1MotorVoltage", leftMaster.getOutputCurrent());
+    	SmartDashboard.putNumber("left2MotorVoltage", leftSlave.getOutputCurrent());
+
     }
     
     /**
