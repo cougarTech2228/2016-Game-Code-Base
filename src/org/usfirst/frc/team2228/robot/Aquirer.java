@@ -33,6 +33,13 @@ public class Aquirer
 	private DigitalInput limitFwd;
 	private DigitalInput limitBwd;
 
+	private boolean first = false;
+
+	private boolean here = false;
+
+	private boolean once = false;
+
+	private boolean here4 = false;
 
 
 	
@@ -67,10 +74,10 @@ public class Aquirer
         /* set closed loop gains in slot0 */
         elevatorMotor.setProfile(0);
         elevatorMotor.setF(0);
-        elevatorMotor.setP(0.4);
-        elevatorMotor.setI(0.0001); 
+        elevatorMotor.setP(0.6);
+        elevatorMotor.setI(0.00005); 
         elevatorMotor.setD(0);
-        elevatorMotor.setCloseLoopRampRate(24);
+//        elevatorMotor.setCloseLoopRampRate(24);
         elevatorMotor.setPosition(0);
         SmartDashboard.putNumber("angle", 0);
         SmartDashboard.putNumber("negate", 1);
@@ -81,23 +88,24 @@ public class Aquirer
 	public void gather(){
 //		spinspinwinwin.set(-1);
 		elevatorMotor.changeControlMode(TalonControlMode.Position);
-		System.out.println("HERE!!!333");
+//		System.out.println("HERE!!!333");
 
 		
-    	if(limitBwd.get()){
-    		elevatorMotor.set(5800);
-			System.out.println("HERE!!!");
+    	
+    	elevatorMotor.set(6000);
+//		System.out.println("HERE!!!");
 
-    	}else{
-    		elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
-			System.out.println("HERE!!!777");
-
-    		elevatorMotor.set(0);
-    	}
+		if(elevatorMotor.isFwdLimitSwitchClosed()){
+			elevatorMotor.setPosition(6200);
+		}
     	
     	if(elevatorMotor.getError()<100){
     		spinspinwinwin.set(-1);
+    	}else{
+    		spinspinwinwin.set(0);
     	}
+//		System.out.println(elevatorMotor.getPosition());
+
     
     }
 	
@@ -110,48 +118,168 @@ public class Aquirer
 	
 	public void calibrate(){
 		elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
-		if(limitFwd.get()){
-			elevatorMotor.set(-0.5);
-//    		System.out.println("RUN ELSE222");
-//    		System.out.println(angleMotor.getPosition());
+		if(elevatorMotor.isFwdLimitSwitchClosed()){
+			elevatorMotor.setPosition(6200);
+			elevatorMotor.set(-0);
+			first = true;
+
 		}else{
-    		elevatorMotor.setPosition(0);
-//    		System.out.println("RUN ELSE");
-			elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
-    		elevatorMotor.set(0);
-    	}
+			elevatorMotor.set(1);
+
+		}
 	}
 	
 	public void raise(){
-		if(limitFwd.get()){
-			elevatorMotor.changeControlMode(TalonControlMode.Position);
-			System.out.println("here3");
-    		elevatorMotor.set(0);
-    		spinspinwinwin.set(0);
-    	}else{
-    		System.out.println("here4");
-    		elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
-    		elevatorMotor.set(0);
-    		spinspinwinwin.set(0);
-
-    	}
+		elevatorMotor.changeControlMode(TalonControlMode.Position);
+		elevatorMotor.set(3637);
+		if(elevatorMotor.isRevLimitSwitchClosed()){
+			elevatorMotor.setPosition(0);
+		}
+		
 	}
 	
 	public void fightdaPOWA(){
 		elevatorMotor.changeControlMode(TalonControlMode.Position);
-		System.out.println("HERE!!!333");
+//		System.out.println("HERE!!!333");
 		spinspinwinwin.set(0);
 		
-    	if(limitBwd.get()){
-    		elevatorMotor.set(6300);
-			System.out.println("HERE!!!");
+    	if(!elevatorMotor.isFwdLimitSwitchClosed()){
+    		elevatorMotor.set(6000);
+//			System.out.println("HERE!!!");
+			first  = true;
+
+    	}else{
+    		elevatorMotor.setPosition(6200);
+
+    	}
+		if(elevatorMotor.getPosition()>5900){
+			here = true;
+		}
+
+
+    	
+    }
+
+	public void overCheval()
+	{
+		elevatorMotor.changeControlMode(TalonControlMode.Position);
+//		System.out.println("HERE!!!333");
+		spinspinwinwin.set(0);
+		
+		if(!elevatorMotor.isRevLimitSwitchClosed()){
+	
+    		elevatorMotor.set(2000);
+//			System.out.println("HERE!!!");
 
     	}else{
     		elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
-			System.out.println("HERE!!!777");
-
+//			System.out.println("HERE!!!777");
+			elevatorMotor.setPosition(0);
     		elevatorMotor.set(0);
     	}
-    	
-    }
+		if(elevatorMotor.getPosition()>1800){
+			here4 = true;
+		}
+		
+	}
+
+	public boolean checkLimitStatusForward()
+	{
+		return elevatorMotor.isFwdLimitSwitchClosed();
+	}
+	
+	public boolean checkLimitStatusReverse()
+	{
+		return elevatorMotor.isRevLimitSwitchClosed();
+	}
+
+	public boolean notFirst()
+	{
+		// TODO Auto-generated method stub
+		return first;
+	}
+
+	public void setFirst(boolean b)
+	{
+		first = b;
+		
+	}
+
+		public void calibrateUp(){
+		elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
+		if(elevatorMotor.isRevLimitSwitchClosed()){
+			elevatorMotor.setPosition(0);
+			elevatorMotor.set(-0);
+			first = true;
+
+		}else{
+			elevatorMotor.set(-0.7);
+
+		}
+	}
+
+		public boolean  getHere()
+		{
+			return here ;
+		}
+		public void setHere(boolean b)
+		{
+			here = b;
+		}
+
+		public void downFast()
+		{
+			elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
+			if(elevatorMotor.getPosition()<5500 && !once){
+				elevatorMotor.set(1);
+				once = true;
+			}
+		
+		}
+		public boolean getOnce(){
+			return once;
+		}
+		public void setOnce(boolean b){
+			once = b;
+		}
+
+		public void setHere4(boolean b)
+		{
+			here4 = b;
+			
+		}
+		public boolean getHere4()
+		{
+
+			return here4;
+			
+		}
+
+		public double getPosition()
+		{
+			return elevatorMotor.getPosition();
+		}
+
+		public void overWall()
+		{
+			elevatorMotor.changeControlMode(TalonControlMode.Position);
+//			System.out.println("HERE!!!333");
+			spinspinwinwin.set(0);
+			
+			if(!elevatorMotor.isRevLimitSwitchClosed()){
+		
+	    		elevatorMotor.set(3000);
+//				System.out.println("HERE!!!");
+
+	    	}else{
+	    		elevatorMotor.changeControlMode(TalonControlMode.PercentVbus);
+//				System.out.println("HERE!!!777");
+				elevatorMotor.setPosition(0);
+	    		elevatorMotor.set(0);
+	    	}
+			if(elevatorMotor.getPosition()>1800){
+				here4 = true;
+			}
+			
+		}
 }

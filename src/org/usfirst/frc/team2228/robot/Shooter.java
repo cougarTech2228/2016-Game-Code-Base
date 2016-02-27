@@ -19,7 +19,7 @@ public class Shooter
 	private boolean optConditions = false;
 	private double highGoalSpeed = -1;
 	private double lowGoalSpeed = -1;
-	private double gatherSpeed = 0.3;
+	private double gatherSpeed = 0.4;
 	
 	private DigitalInput sonarSensor;
 	private boolean collectedStatus = false;
@@ -45,6 +45,7 @@ public class Shooter
 	private int transportPosStpt = 200;
 	
 	private int time;
+	private boolean first = false;
 
 
 
@@ -80,7 +81,7 @@ public class Shooter
 
 		
         angleMotor.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-        angleMotor.reverseSensor(false);
+        angleMotor.reverseSensor(true);
 //        angleMotor.configEncoderCodesPerRev(497); // if using FeedbackDevice.QuadEncoder
         //angleMotor.configPotentiometerTurns(XXX), // if using FeedbackDevice.AnalogEncoder or AnalogPot
 
@@ -93,7 +94,7 @@ public class Shooter
         angleMotor.setP(0.7);
         angleMotor.setI(0.001); 
         angleMotor.setD(5);
-        angleMotor.setCloseLoopRampRate(24);
+//        angleMotor.setCloseLoopRampRate(24);
         angleMotor.setPosition(0);
         SmartDashboard.putNumber("angle", 0);
         SmartDashboard.putNumber("negate", 1);
@@ -138,17 +139,13 @@ public class Shooter
 	
 	public boolean checkLimitStatusForward(){
 		
-		if(angleMotor.isFwdLimitSwitchClosed()){
-			return true;
-		}else{
-			return false;
-		}
+		return angleMotor.isFwdLimitSwitchClosed();
 		
 	}
 	
 	public boolean checkLimitStatusReverse(){
 		
-		if(angleMotor.isFwdLimitSwitchClosed()){
+		if(!angleMotor.isFwdLimitSwitchClosed()){
 			
 			return true;
 		}else{
@@ -173,15 +170,18 @@ public class Shooter
 			rightWheel.set(ZERO_SPD);
 		}
 		
-		if(limitFwd.get()){
+		if(!angleMotor.isFwdLimitSwitchClosed()){
+			
+			angleMotor.set(1750);
 //    		System.out.println("RUN ELSE222");
 //    		System.out.println(angleMotor.getPosition());
-			angleMotor.set(1800);
 		}else{
     		angleMotor.setPosition(1750);
 //    		System.out.println("RUN ELSE");
+    		setMode("not");
 			angleMotor.changeControlMode(TalonControlMode.PercentVbus);
     		angleMotor.set(0);
+    		first = true;
     	}
 	}
 	
@@ -266,6 +266,8 @@ public class Shooter
 		angleMotor.changeControlMode(TalonControlMode.Position);
 
 	
+		leftWheel.set(0);
+		rightWheel.set(0);
 		
 		angleMotor.set(725);
 	
@@ -357,8 +359,8 @@ public class Shooter
 	
 	public void calibrate(){
 		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
-		if(limitFwd.get()){
-			angleMotor.set(0.4);
+		if(!angleMotor.isFwdLimitSwitchClosed()){
+			angleMotor.set(0.3);
 //    		System.out.println("RUN ELSE222");
 //    		System.out.println(angleMotor.getPosition());
 		}else{
@@ -367,6 +369,41 @@ public class Shooter
     		setMode("not");
 			angleMotor.changeControlMode(TalonControlMode.PercentVbus);
     		angleMotor.set(0);
+    		first = true;
+    	}
+	}
+
+	public boolean notFirst()
+	{
+		// TODO Auto-generated method stub
+		return first;
+	}
+
+	public void setFirst(boolean b)
+	{
+		first = b;
+		
+	}
+
+	public boolean getFirst()
+	{
+		// TODO Auto-generated method stub
+		return first;
+	}
+
+	public void calibrateUp(){
+		angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+		if(!angleMotor.isRevLimitSwitchClosed()){
+			angleMotor.set(-0.3);
+//    		System.out.println("RUN ELSE222");
+//    		System.out.println(angleMotor.getPosition());
+		}else{
+    		angleMotor.setPosition(0);
+//    		System.out.println("RUN ELSE");
+    		setMode("not");
+			angleMotor.changeControlMode(TalonControlMode.PercentVbus);
+    		angleMotor.set(0);
+    		first = true;
     	}
 	}
 	
