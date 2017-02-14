@@ -2,7 +2,9 @@ package org.usfirst.frc.team2228.robot;
 
 public class RobotMap
 {
-
+	// I'm adding a line to branch1
+  // removing the conflict to add a third line
+  
 	final static int RIGHT_MOTOR_SLV_PORT = 7;
 	final static int RIGHT_MOTOR_MSTR_PORT = 8;
 	final static int LEFT_MOTOR_MSTR_PORT = 1;
